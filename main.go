@@ -1,0 +1,112 @@
+package main
+
+import (
+	"encoding/csv"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"sort"
+	"strconv"
+	"time"
+)
+
+type Evaluation struct {
+	Version        string
+	LoopDuration   string
+	BinaryDuration BinaryDuration
+}
+
+type BinaryDuration struct {
+	Duration      string
+	SortDuration  string
+	FoundDuration string
+}
+
+var results []Evaluation
+
+func main() {
+	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv", "data-20000000.csv"}
+
+	for i, _ := range files {
+		file, err := os.Open("./source/" + files[i])
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+
+		csvReader := csv.NewReader(file)
+		csvReader.Comma = ';'
+		csvReader.LazyQuotes = true
+		data, err := csvReader.ReadAll()
+		if err != nil {
+			log.Fatal(err, "\n"+files[i])
+		}
+
+		var values []string
+
+		for y, _ := range data {
+			values = append(values, data[y]...)
+		}
+
+		//randomNumber := rand.Intn(len(values))
+		key := values[len(values)-2]
+
+		loopDuration := ""
+		binaryDuration := ""
+
+		var startTime = time.Now().UnixNano()
+		status := searchWithLoop(key, values)
+		loopDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
+		if !status {
+			return
+		}
+		startTime = time.Now().UnixNano()
+		status, sortValue, foundValue := searchWithBinary(key, values)
+		binaryDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
+		if !status {
+			return
+		}
+
+		results = append(results, Evaluation{
+			Version:      files[i],
+			LoopDuration: loopDuration,
+			BinaryDuration: BinaryDuration{
+				Duration:      binaryDuration,
+				SortDuration:  sortValue,
+				FoundDuration: foundValue,
+			},
+		})
+		fmt.Println("Finished Round " + strconv.Itoa(i) + " - " + files[i])
+	}
+	fmt.Println("-------------------------------------------")
+	json, _ := json.Marshal(results)
+	fmt.Println(string(json))
+	fmt.Println("-------------------------------------------")
+}
+
+func searchWithLoop(key string, values []string) bool {
+	for _, value := range values {
+		if value == key {
+			return true
+		}
+	}
+	return false
+}
+
+func searchWithBinary(key string, values []string) (bool, string, string) {
+	var startTime = time.Now().UnixNano()
+	sort.Strings(values)
+	Intermediate := time.Now().UnixNano()
+	sortValue := strconv.FormatUint(uint64(Intermediate)-uint64(startTime), 10) + "ns"
+	i := sort.Search(len(values), func(i int) bool { return key <= values[i] })
+	if i < len(values) && values[i] == key {
+		foundValue := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(Intermediate), 10) + "ns"
+		return true, sortValue, foundValue
+	}
+	return false, "", ""
+}
+
+func searchWithHashMap(key string, values []string) bool {
+	return false
+}
