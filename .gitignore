@@ -144,3 +144,4 @@ fabric.properties
 /.idea/Test-Playground.iml
 /.idea/vcs.xml
 /source/
+/go.mod
