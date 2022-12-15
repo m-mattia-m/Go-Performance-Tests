@@ -26,7 +26,8 @@ type BinaryDuration struct {
 var results []Evaluation
 
 func main() {
-	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv", "data-20000000.csv"}
+	// The file with 20 million records was too big, so I could not upload it. 'data-20000000.csv'
+	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv"}
 
 	for i, _ := range files {
 		file, err := os.Open("./source/" + files[i])
