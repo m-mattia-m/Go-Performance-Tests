@@ -23,67 +23,86 @@ type BinaryDuration struct {
 	FoundDuration string
 }
 
-var results []Evaluation
+var stringResults []Evaluation
+var byteResults []Evaluation
 
 func main() {
 	// The file with 20 million records was too big, so I could not upload it. 'data-20000000.csv'
-	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv"}
+	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv", "data-20000000.csv"}
 
 	for i, _ := range files {
-		file, err := os.Open("./source/" + files[i])
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer file.Close()
-
-		csvReader := csv.NewReader(file)
-		csvReader.Comma = ';'
-		csvReader.LazyQuotes = true
-		data, err := csvReader.ReadAll()
-		if err != nil {
-			log.Fatal(err, "\n"+files[i])
-		}
+		data := getData(files, i)
 
 		var values []string
-
 		for y, _ := range data {
 			values = append(values, data[y]...)
 		}
 
-		//randomNumber := rand.Intn(len(values))
 		key := values[len(values)-2]
+		StringBenchmarkt(files, key, values, i)
+		ByteBenchmakt(files, key, values, i)
 
-		loopDuration := ""
-		binaryDuration := ""
-
-		var startTime = time.Now().UnixNano()
-		status := searchWithLoop(key, values)
-		loopDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
-		if !status {
-			return
-		}
-		startTime = time.Now().UnixNano()
-		status, sortValue, foundValue := searchWithBinary(key, values)
-		binaryDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
-		if !status {
-			return
-		}
-
-		results = append(results, Evaluation{
-			Version:      files[i],
-			LoopDuration: loopDuration,
-			BinaryDuration: BinaryDuration{
-				Duration:      binaryDuration,
-				SortDuration:  sortValue,
-				FoundDuration: foundValue,
-			},
-		})
-		fmt.Println("Finished Round " + strconv.Itoa(i) + " - " + files[i])
 	}
 	fmt.Println("-------------------------------------------")
-	json, _ := json.Marshal(results)
-	fmt.Println(string(json))
+	fmt.Println("String-Results")
+	jsonString, _ := json.Marshal(stringResults)
+	fmt.Println(string(jsonString))
 	fmt.Println("-------------------------------------------")
+	fmt.Println("Byte-Results")
+	jsonByte, _ := json.Marshal(byteResults)
+	fmt.Println(string(jsonByte))
+	fmt.Println("-------------------------------------------")
+}
+
+func getData(files []string, i int) [][]string {
+	file, err := os.Open("./source/" + files[i])
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	csvReader := csv.NewReader(file)
+	csvReader.Comma = ';'
+	csvReader.LazyQuotes = true
+	data, err := csvReader.ReadAll()
+	if err != nil {
+		log.Fatal(err, "\n"+files[i])
+	}
+
+	return data
+}
+
+func StringBenchmarkt(files []string, key string, values []string, i int) {
+	loopDuration := ""
+	binaryDuration := ""
+
+	var startTime = time.Now().UnixNano()
+	status := searchWithLoop(key, values)
+	loopDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
+	if !status {
+		return
+	}
+	startTime = time.Now().UnixNano()
+	status, sortValue, foundValue := searchWithBinary(key, values)
+	binaryDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
+	if !status {
+		return
+	}
+
+	stringResults = append(stringResults, Evaluation{
+		Version:      files[i],
+		LoopDuration: loopDuration,
+		BinaryDuration: BinaryDuration{
+			Duration:      binaryDuration,
+			SortDuration:  sortValue,
+			FoundDuration: foundValue,
+		},
+	})
+	fmt.Println("Finished String Round " + strconv.Itoa(i) + " - " + files[i])
+}
+
+func ByteBenchmakt(files []string, key string, values []string, i int) {
+
 }
 
 func searchWithLoop(key string, values []string) bool {
