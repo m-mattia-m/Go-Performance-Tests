@@ -12,14 +12,21 @@ import (
 )
 
 type Evaluation struct {
-	Version        string
-	LoopDuration   string
-	BinaryDuration BinaryDuration
+	Version         string
+	LoopDuration    string
+	BinaryDuration  BinaryDuration
+	HashMapduration HashMapduration
 }
 
 type BinaryDuration struct {
 	Duration      string
 	SortDuration  string
+	FoundDuration string
+}
+
+type HashMapduration struct {
+	Duration      string
+	MapDuration   string
 	FoundDuration string
 }
 
@@ -88,6 +95,12 @@ func StringBenchmarkt(files []string, key string, values []string, i int) {
 	if !status {
 		return
 	}
+	startTime = time.Now().UnixNano()
+	status, mapDuration, hashMapFoundValue := searchWithHashMap(key, values)
+	hashMapDuration := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
+	if !status {
+		return
+	}
 
 	stringResults = append(stringResults, Evaluation{
 		Version:      files[i],
@@ -96,6 +109,11 @@ func StringBenchmarkt(files []string, key string, values []string, i int) {
 			Duration:      binaryDuration,
 			SortDuration:  sortValue,
 			FoundDuration: foundValue,
+		},
+		HashMapduration: HashMapduration{
+			Duration:      hashMapDuration,
+			MapDuration:   mapDuration,
+			FoundDuration: hashMapFoundValue,
 		},
 	})
 	fmt.Println("Finished String Round " + strconv.Itoa(i) + " - " + files[i])
@@ -127,6 +145,18 @@ func searchWithBinary(key string, values []string) (bool, string, string) {
 	return false, "", ""
 }
 
-func searchWithHashMap(key string, values []string) bool {
-	return false
+func searchWithHashMap(key string, values []string) (bool, string, string) {
+	var startTime = time.Now().UnixNano()
+	valuesMap := make(map[string]string)
+	for _, word := range values {
+		valuesMap[word] = word
+	}
+	Intermediate := time.Now().UnixNano()
+	hashMapDuration := strconv.FormatUint(uint64(Intermediate)-uint64(startTime), 10) + "ns"
+
+	if _, foundState := valuesMap[key]; foundState {
+		foundDuration := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(Intermediate), 10) + "ns"
+		return true, hashMapDuration, foundDuration
+	}
+	return false, "", ""
 }
