@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 	"sort"
 	"strconv"
@@ -30,12 +31,18 @@ type HashMapduration struct {
 	FoundDuration string
 }
 
+type Object struct {
+	Id int
+}
+
 var stringResults []Evaluation
 var byteResults []Evaluation
+var intResults []Evaluation
 
 func main() {
 	// The file with 20 million records was too big, so I could not upload it. 'data-20000000.csv'
-	files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv", "data-20000000.csv"}
+	//files := []string{"data-10.csv", "data-200.csv", "data-1000.csv", "data-15000.csv", "data-50000.csv", "data-500000.csv", "data-1000000.csv", "data-20000000.csv"}
+	files := []string{}
 
 	for i, _ := range files {
 		data := getData(files, i)
@@ -50,6 +57,28 @@ func main() {
 		ByteBenchmakt(files, key, values, i)
 
 	}
+
+	arrayLength := []int{10, 200, 1000, 15000, 50000, 500000, 1000000, 20000000}
+	for _, length := range arrayLength {
+		rand.Seed(time.Now().Unix())
+		//numbers := rand.Perm(length)
+
+		numbers := make([]int, length)
+		for i := 0; i < len(numbers); i++ {
+			numbers[i] = rand.Intn(200000000)
+		}
+		index := rand.Intn(len(numbers)-0) + 0
+
+		_, _, binaryDuration := searchWithBinaryInt(numbers[index], numbers)
+		_, _, loopDuration := searchWithLoopInt(numbers[index], numbers)
+
+		intResults = append(intResults, Evaluation{
+			Version:        fmt.Sprintf("Int - %d", length),
+			LoopDuration:   loopDuration,
+			BinaryDuration: binaryDuration,
+		})
+	}
+
 	fmt.Println("-------------------------------------------")
 	fmt.Println("String-Results")
 	jsonString, _ := json.Marshal(stringResults)
@@ -59,6 +88,11 @@ func main() {
 	jsonByte, _ := json.Marshal(byteResults)
 	fmt.Println(string(jsonByte))
 	fmt.Println("-------------------------------------------")
+	fmt.Println("Int-Results")
+	jsonInt, _ := json.Marshal(intResults)
+	fmt.Println(string(jsonInt))
+	fmt.Println("-------------------------------------------")
+
 }
 
 func getData(files []string, i int) [][]string {
@@ -84,13 +118,13 @@ func StringBenchmarkt(files []string, key string, values []string, i int) {
 	binaryDuration := ""
 
 	var startTime = time.Now().UnixNano()
-	status := searchWithLoop(key, values)
+	status := searchWithLoopString(key, values)
 	loopDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
 	if !status {
 		return
 	}
 	startTime = time.Now().UnixNano()
-	status, sortValue, foundValue := searchWithBinary(key, values)
+	status, sortValue, foundValue := searchWithBinaryString(key, values)
 	binaryDuration = strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(startTime), 10) + "ns"
 	if !status {
 		return
@@ -123,7 +157,7 @@ func ByteBenchmakt(files []string, key string, values []string, i int) {
 
 }
 
-func searchWithLoop(key string, values []string) bool {
+func searchWithLoopString(key string, values []string) bool {
 	for _, value := range values {
 		if value == key {
 			return true
@@ -132,7 +166,7 @@ func searchWithLoop(key string, values []string) bool {
 	return false
 }
 
-func searchWithBinary(key string, values []string) (bool, string, string) {
+func searchWithBinaryString(key string, values []string) (bool, string, string) {
 	var startTime = time.Now().UnixNano()
 	sort.Strings(values)
 	Intermediate := time.Now().UnixNano()
@@ -160,3 +194,50 @@ func searchWithHashMap(key string, values []string) (bool, string, string) {
 	}
 	return false, "", ""
 }
+
+func searchWithLoopInt(number int, numbers []int) (bool, int, string) {
+	Intermediate := time.Now().UnixNano()
+	for i, _ := range numbers {
+		if number == numbers[i] {
+			return true, number, strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(Intermediate), 10) + "ns"
+		}
+	}
+
+	return false, number, strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(Intermediate), 10) + "ns"
+}
+
+func searchWithBinaryInt(number int, numbers []int) (bool, int, BinaryDuration) {
+	IntermediateSort := time.Now().UnixNano()
+	sort.Slice(numbers, func(i, j int) bool { return numbers[i] <= numbers[j] })
+	sortDuration := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(IntermediateSort), 10) + "ns"
+	IntermediateSearch := time.Now().UnixNano()
+	index := sort.Search(len(numbers), func(i int) bool { return numbers[i] <= number })
+	searchDuration := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(IntermediateSearch), 10) + "ns"
+	wholeDuration := strconv.FormatUint(uint64(time.Now().UnixNano())-uint64(IntermediateSort), 10) + "ns"
+
+	if index >= len(numbers) {
+		return false, -1, BinaryDuration{
+			Duration:      wholeDuration,
+			SortDuration:  sortDuration,
+			FoundDuration: searchDuration,
+		}
+	}
+
+	if numbers[index] == number {
+		return true, numbers[index], BinaryDuration{
+			Duration:      wholeDuration,
+			SortDuration:  sortDuration,
+			FoundDuration: searchDuration,
+		}
+	}
+	return false, -1, BinaryDuration{
+		Duration:      wholeDuration,
+		SortDuration:  sortDuration,
+		FoundDuration: searchDuration,
+	}
+}
+
+//func searchWithBinaryObjectId(object Object, objects []Object) (bool, int, BinaryDuration) {
+//	sort.Slice(objects, func(i, j int) bool { return objects[i].Id <= objects[j].Id })
+//	sort.Search(len(objects), func(i int) bool { return objects[i].Id <= object.Id })
+//}
